@@ -37,7 +37,10 @@ mongoose.connect(DB).then(()=>{
 })
 
 // start the server and listened on the specified port number
-app.listen(PORT,"0.0.0.0", function(){
-    // log the number
-    console.log('Server is running on port:'+ PORT);  
-})
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, "0.0.0.0", function() {
+        // log the number
+        console.log('Server is running on port:' + PORT);  
+    });
+}
+module.exports = app;
