@@ -1,0 +1,69 @@
+const express=require('express');
+const SubCategory=require('../models/sub_category');
+const subCategoryRouter=express.Router();
+subCategoryRouter.post('/api/subcategories',async(req,res)=>{
+    try{
+        const {categoryId, categoryName, image, subCategoryName}=req.body;
+        const subCategory=new SubCategory({categoryId, categoryName, image, subCategoryName});
+        await subCategory.save();
+        res.status(201).send(subCategory);
+    }catch(e){
+        res.status(500).json({error:e.message});
+    }
+
+});
+
+subCategoryRouter.get('/api/subcategories', async(req,res)=>{
+    try{
+        const subcategories= await SubCategory.find();
+        return res.status(200).json(subcategories);
+    }catch(e){
+        res.status(500).json({error:e.message});
+    }
+});
+subCategoryRouter.get('/api/category/:categoryName/subcategories',async(req,res)=>{
+    try {
+        const {categoryName}=req.params;
+        const subcategories=await SubCategory.find({categoryName:categoryName});
+        if (!subcategories || subcategories.length==0){
+            return res.status(404).json({msg:"No Subcategory Found"});
+        }else{
+            return res.status(200).json(subcategories);
+        }
+    } catch (e) {
+        res.status(500).json({error:e.message});
+    }
+})
+
+subCategoryRouter.put('/api/subcategories/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { categoryId, categoryName, image, subCategoryName } = req.body;
+        const updatedSubCategory = await SubCategory.findByIdAndUpdate(
+            id,
+            { categoryId, categoryName, image, subCategoryName },
+            { new: true }
+        );
+        if (!updatedSubCategory) {
+            return res.status(404).json({ msg: "Subcategory not found" });
+        }
+        res.status(200).send(updatedSubCategory);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+subCategoryRouter.delete('/api/subcategories/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deletedSubCategory = await SubCategory.findByIdAndDelete(id);
+        if (!deletedSubCategory) {
+            return res.status(404).json({ msg: "Subcategory not found" });
+        }
+        res.status(200).send(deletedSubCategory);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+module.exports=subCategoryRouter;
