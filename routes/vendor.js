@@ -10,46 +10,28 @@ vendorRouter.post("/api/vendor/signup", async (req, res) => {
         const { fullName,shopName,address,phone,city,bank,accountNumber,accountTitle, email, password } = req.body;
         const emailLower = email.toLowerCase();
 
-        // 1. Phone validation
-        const phoneRegex = /^\d{4}-\d{7}$/;
-        if (!phoneRegex.test(phone) || phone === '0000-0000000') {
-            return res.status(400).json({ msg: "Phone must be in format 0000-0000000 and cannot be all zeros" });
+        // 1. Phone validation (Pakistan format: 03... or +923...)
+        const phoneRegex = /^(03|\+923)\d{9}$/;
+        if (!phoneRegex.test(phone.replace(/[-\s]/g, '')) || phone === '00000000000') {
+            return res.status(400).json({ msg: "Invalid Pakistan phone number format" });
         }
 
-        // 2. Email validation (Strict)
-        const emailRegex = /^[a-z0-9._%+-]+@(gmail|yahoo|outlook|hotmail|icloud|protonmail|me)\.(com|net|org|edu|pk|io)$/i;
+        // 2. Email validation (General Business Email)
+        const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
         if (!emailRegex.test(emailLower)) {
-            return res.status(400).json({ msg: "Invalid email format or unsupported/typo domain (e.g., .comm)" });
+            return res.status(400).json({ msg: "Invalid email format" });
         }
 
-        // 3. IBAN Validation (MOD-97 International Standard)
-        const validateIBAN = (iban) => {
-            const s = iban.toUpperCase().replace(/\s/g, '');
-            if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/.test(s)) return false;
-            const reordered = s.substring(4) + s.substring(0, 4);
-            let numeric = "";
-            for (let i = 0; i < reordered.length; i++) {
-                const charCode = reordered.charCodeAt(i);
-                numeric += (charCode >= 65 && charCode <= 90) ? (charCode - 55).toString() : reordered[i];
-            }
-            let res = 0;
-            for (let i = 0; i < numeric.length; i++) {
-                res = (res * 10 + parseInt(numeric[i])) % 97;
-            }
-            return res === 1;
-        };
-
-        if (!validateIBAN(accountNumber)) {
-            return res.status(400).json({ msg: "Invalid IBAN Checksum (ISO 13616 standard failed)" });
-        }
-        if (accountNumber.substring(4).split('').every(char => char === '0')) {
-            return res.status(400).json({ msg: "Account number cannot be all zeros" });
+        // 3. IBAN Validation (Format Only - 24 Chars, Prefix PK)
+        const normalizedIBAN = accountNumber.toUpperCase().replace(/\s/g, '');
+        if (!/^PK[0-9]{2}[A-Z]{4}[A-Z0-9]{16}$/.test(normalizedIBAN) || normalizedIBAN.length !== 24) {
+            return res.status(400).json({ msg: "Invalid Pakistan IBAN format (Must be 24 chars starting with PK)" });
         }
 
         // 4. Password validation (Strength)
         const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
         if (!passwordRegex.test(password)) {
-            return res.status(400).json({ msg: "Password must be 8+ chars and include Uppercase, Lowercase, Number, and Special Char (@$!%*?&)" });
+            return res.status(400).json({ msg: "Password does not meet complexity requirements" });
         }
 
         // 5. Uniqueness Checks
