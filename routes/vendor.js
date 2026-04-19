@@ -18,8 +18,8 @@ vendorRouter.post("/api/vendor/signup", async (req, res) => {
         const phoneNormalized = normalizePhone(phone);
 
         // 1. Phone validation (Pakistan format: 03...)
-        if (!/^03\d{9}$/.test(phoneNormalized) || phoneNormalized === '00000000000') {
-            return res.status(400).json({ msg: "Invalid Pakistan phone number format (Use 03XXXXXXXXX)" });
+        if (!/^03\d{9}$/.test(phoneNormalized) || phoneNormalized.substring(2).split('').every(char => char === '0')) {
+            return res.status(400).json({ msg: "Invalid Pakistan phone number (Cannot be all zeros)" });
         }
 
         // 2. Email validation (General Business Email)
