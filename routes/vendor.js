@@ -7,7 +7,7 @@ const vendorRouter=express.Router();
 // Signup API
 vendorRouter.post("/api/vendor/signup", async (req, res) => {
     try {
-        const { fullName,shopName,address,phone,city,bank,accountNumber,accountTitle, email, password } = req.body;
+        const emailLower = email.toLowerCase();
 
         // Check if phone format is valid and not all zeros
         const phoneRegex = /^\d{4}-\d{7}$/;
@@ -18,8 +18,14 @@ vendorRouter.post("/api/vendor/signup", async (req, res) => {
             return res.status(400).json({ msg: "Phone number cannot be all zeros" });
         }
 
+        // Check if IBAN/Account Number format is valid (General IBAN regex)
+        const ibanRegex = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,28}$/;
+        if (!ibanRegex.test(accountNumber)) {
+            return res.status(400).json({ msg: "Invalid IBAN/Account Number format" });
+        }
+
         // Check if the email already exists
-        const existingEmail = await Vendor.findOne({ email });
+        const existingEmail = await Vendor.findOne({ email: emailLower });
         if (existingEmail) {
             return res.status(400).json({ msg: "Vendor with this email already exists" });
         }
@@ -28,6 +34,12 @@ vendorRouter.post("/api/vendor/signup", async (req, res) => {
         const existingPhone = await Vendor.findOne({ phone });
         if (existingPhone) {
             return res.status(400).json({ msg: "Vendor with this phone number already exists" });
+        }
+
+        // Check if the Account Number already exists
+        const existingAccount = await Vendor.findOne({ accountNumber });
+        if (existingAccount) {
+            return res.status(400).json({ msg: "Vendor with this Account Number/IBAN already exists" });
         }
 
         // Check password length
@@ -40,7 +52,7 @@ vendorRouter.post("/api/vendor/signup", async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt);
 
         // Create and save the new user
-        const vendor = new Vendor({ fullName,shopName,address,phone,city, bank,accountNumber,accountTitle,  email, password: hashedPassword });
+        const vendor = new Vendor({ fullName,shopName,address,phone,city, bank,accountNumber,accountTitle,  email: emailLower, password: hashedPassword });
         await vendor.save();
 
         res.status(201).json({ vendor: vendor });
@@ -140,9 +152,10 @@ vendorRouter.put("/api/edit-vendor/:id", async (req, res) => {
 vendorRouter.post("/api/vendor/forgot-password", async (req, res) => {
     try {
         const { email, newPassword } = req.body;
+        const emailLower = email.toLowerCase();
 
         // Check if the vendor exists
-        const vendor = await Vendor.findOne({ email });
+        const vendor = await Vendor.findOne({ email: emailLower });
         if (!vendor) {
             return res.status(404).json({ msg: "No Vendor Found With This Email" });
         }
