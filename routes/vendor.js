@@ -9,10 +9,30 @@ vendorRouter.post("/api/vendor/signup", async (req, res) => {
     try {
         const { fullName,shopName,address,phone,city,bank,accountNumber,accountTitle, email, password } = req.body;
 
+        // Check if phone format is valid and not all zeros
+        const phoneRegex = /^\d{4}-\d{7}$/;
+        if (!phoneRegex.test(phone)) {
+            return res.status(400).json({ msg: "Phone must be in the format 0000-0000000" });
+        }
+        if (phone === '0000-0000000') {
+            return res.status(400).json({ msg: "Phone number cannot be all zeros" });
+        }
+
         // Check if the email already exists
         const existingEmail = await Vendor.findOne({ email });
         if (existingEmail) {
             return res.status(400).json({ msg: "Vendor with this email already exists" });
+        }
+
+        // Check if the phone already exists
+        const existingPhone = await Vendor.findOne({ phone });
+        if (existingPhone) {
+            return res.status(400).json({ msg: "Vendor with this phone number already exists" });
+        }
+
+        // Check password length
+        if (password.length < 8) {
+            return res.status(400).json({ msg: "Password must be at least 8 characters long" });
         }
 
         // Hash the password
