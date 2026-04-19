@@ -2,7 +2,6 @@ const express= require("express");
 const orderRouter=express.Router();
 const Order=require("../models/order");
 const Product=require("../models/product");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const {auth,vendorAuth}=require("../middleware/auth");
 
 
@@ -59,47 +58,7 @@ orderRouter.post("/api/orders",auth,  async(req, res)=>{
     }
 });
 
-//payment api (Original)
-orderRouter.post("/api/payment-intent",auth, async(req, res)=>{
-    try {
-        const {amount, currency}=req.body;
-        const paymentIntent=await stripe.paymentIntents.create({
-            amount,
-            currency,
-        });
-        return res.status(200).json(paymentIntent);
-    } catch (e) {
-        return res.status(500).json({error: e.message});
-    }
-});
 
-// Step 3 compliance: create-payment-intent direct route
-orderRouter.post("/create-payment-intent", async (req, res) => {
-    try {
-        const { amount, currency } = req.body;
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: amount,
-            currency: currency,
-            payment_method_types: ["card"],
-        });
-        res.json({
-            clientSecret: paymentIntent.client_secret,
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-
-orderRouter.get("/api/payment-intent/:id",auth, async(req, res)=>{
-    try {
-        const paymentIntent=await stripe.paymentIntents.retrieve(req.params.id);
-        return res.status(200).json(paymentIntent);
-
-    } catch (e) {
-        return res.status(500).json({error:e.message});
-    }
-});
 
 // get orders by buyer id
 orderRouter.get("/api/orders/:buyerId",auth, async (req, res)=>{
