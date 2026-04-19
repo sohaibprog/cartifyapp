@@ -27,6 +27,9 @@ vendorRouter.post("/api/vendor/signup", async (req, res) => {
         if (!/^PK[0-9]{2}[A-Z]{4}[A-Z0-9]{16}$/.test(normalizedIBAN) || normalizedIBAN.length !== 24) {
             return res.status(400).json({ msg: "Invalid Pakistan IBAN format (Must be 24 chars starting with PK)" });
         }
+        if (normalizedIBAN.substring(4).split('').every(char => char === '0')) {
+            return res.status(400).json({ msg: "IBAN cannot be all zeros" });
+        }
 
         // 4. Password validation (Strength)
         const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
