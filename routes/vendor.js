@@ -7,6 +7,7 @@ const vendorRouter=express.Router();
 // Signup API
 vendorRouter.post("/api/vendor/signup", async (req, res) => {
     try {
+        const { fullName,shopName,address,phone,city,bank,accountNumber,accountTitle, email, password } = req.body;
         const emailLower = email.toLowerCase();
 
         // Check if phone format is valid and not all zeros
