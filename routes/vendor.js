@@ -9,11 +9,17 @@ vendorRouter.post("/api/vendor/signup", async (req, res) => {
     try {
         const { fullName,shopName,address,phone,city,bank,accountNumber,accountTitle, email, password } = req.body;
         const emailLower = email.toLowerCase();
+        
+        const normalizePhone = (p) => {
+            let cleaned = p.replace(/\D/g, '');
+            if (cleaned.startsWith('92')) cleaned = '0' + cleaned.substring(2);
+            return cleaned;
+        };
+        const phoneNormalized = normalizePhone(phone);
 
-        // 1. Phone validation (Pakistan format: 03... or +923...)
-        const phoneRegex = /^(03|\+923)\d{9}$/;
-        if (!phoneRegex.test(phone.replace(/[-\s]/g, '')) || phone === '00000000000') {
-            return res.status(400).json({ msg: "Invalid Pakistan phone number format" });
+        // 1. Phone validation (Pakistan format: 03...)
+        if (!/^03\d{9}$/.test(phoneNormalized) || phoneNormalized === '00000000000') {
+            return res.status(400).json({ msg: "Invalid Pakistan phone number format (Use 03XXXXXXXXX)" });
         }
 
         // 2. Email validation (General Business Email)
@@ -41,19 +47,19 @@ vendorRouter.post("/api/vendor/signup", async (req, res) => {
         const existingEmail = await Vendor.findOne({ email: emailLower });
         if (existingEmail) return res.status(400).json({ msg: "Vendor with this email already exists" });
 
-        const existingPhone = await Vendor.findOne({ phone });
+        const existingPhone = await Vendor.findOne({ phone: phoneNormalized });
         if (existingPhone) return res.status(400).json({ msg: "Vendor with this phone number already exists" });
 
-        const existingAccount = await Vendor.findOne({ accountNumber });
+        const existingAccount = await Vendor.findOne({ accountNumber: normalizedIBAN });
         if (existingAccount) return res.status(400).json({ msg: "Vendor with this IBAN already exists" });
 
         // Hash the password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Create and save the new user
-        const vendor = new Vendor({ fullName,shopName,address,phone,city, bank,accountNumber,accountTitle,  email: emailLower, password: hashedPassword });
-        await vendor.save();
+        let vendor = new Vendor({
+            fullName, shopName, address, phone: phoneNormalized, city, bank, accountNumber: normalizedIBAN, accountTitle, email: emailLower, password: hashedPassword
+        });await vendor.save();
 
         res.status(201).json({ vendor: vendor });
     } catch (error) {
@@ -185,7 +191,9 @@ vendorRouter.get("/api/vendor/check-uniqueness", async (req, res) => {
         if (field === 'email') {
             query.email = value.toLowerCase();
         } else if (field === 'phone') {
-            query.phone = value;
+            let cleaned = value.replace(/\D/g, '');
+            if (cleaned.startsWith('92')) cleaned = '0' + cleaned.substring(2);
+            query.phone = cleaned;
         } else if (field === 'accountNumber') {
             query.accountNumber = value;
         } else {
