@@ -10,46 +10,57 @@ vendorRouter.post("/api/vendor/signup", async (req, res) => {
         const { fullName,shopName,address,phone,city,bank,accountNumber,accountTitle, email, password } = req.body;
         const emailLower = email.toLowerCase();
 
-        // Check if phone format is valid and not all zeros
+        // 1. Phone validation
         const phoneRegex = /^\d{4}-\d{7}$/;
-        if (!phoneRegex.test(phone)) {
-            return res.status(400).json({ msg: "Phone must be in the format 0000-0000000" });
-        }
-        if (phone === '0000-0000000') {
-            return res.status(400).json({ msg: "Phone number cannot be all zeros" });
+        if (!phoneRegex.test(phone) || phone === '0000-0000000') {
+            return res.status(400).json({ msg: "Phone must be in format 0000-0000000 and cannot be all zeros" });
         }
 
-        // Check if IBAN/Account Number format is valid (General IBAN regex)
-        const ibanRegex = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,28}$/;
-        if (!ibanRegex.test(accountNumber)) {
-            return res.status(400).json({ msg: "Invalid IBAN/Account Number format" });
+        // 2. Email validation (Strict)
+        const emailRegex = /^[a-z0-9._%+-]+@(gmail|yahoo|outlook|hotmail|icloud|protonmail|me)\.(com|net|org|edu|pk|io)$/i;
+        if (!emailRegex.test(emailLower)) {
+            return res.status(400).json({ msg: "Invalid email format or unsupported/typo domain (e.g., .comm)" });
+        }
+
+        // 3. IBAN Validation (MOD-97 International Standard)
+        const validateIBAN = (iban) => {
+            const s = iban.toUpperCase().replace(/\s/g, '');
+            if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/.test(s)) return false;
+            const reordered = s.substring(4) + s.substring(0, 4);
+            let numeric = "";
+            for (let i = 0; i < reordered.length; i++) {
+                const charCode = reordered.charCodeAt(i);
+                numeric += (charCode >= 65 && charCode <= 90) ? (charCode - 55).toString() : reordered[i];
+            }
+            let res = 0;
+            for (let i = 0; i < numeric.length; i++) {
+                res = (res * 10 + parseInt(numeric[i])) % 97;
+            }
+            return res === 1;
+        };
+
+        if (!validateIBAN(accountNumber)) {
+            return res.status(400).json({ msg: "Invalid IBAN Checksum (ISO 13616 standard failed)" });
         }
         if (accountNumber.substring(4).split('').every(char => char === '0')) {
-            return res.status(400).json({ msg: "IBAN/Account Number cannot be all zeros" });
+            return res.status(400).json({ msg: "Account number cannot be all zeros" });
         }
 
-        // Check if the email already exists
+        // 4. Password validation (Strength)
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(password)) {
+            return res.status(400).json({ msg: "Password must be 8+ chars and include Uppercase, Lowercase, Number, and Special Char (@$!%*?&)" });
+        }
+
+        // 5. Uniqueness Checks
         const existingEmail = await Vendor.findOne({ email: emailLower });
-        if (existingEmail) {
-            return res.status(400).json({ msg: "Vendor with this email already exists" });
-        }
+        if (existingEmail) return res.status(400).json({ msg: "Vendor with this email already exists" });
 
-        // Check if the phone already exists
         const existingPhone = await Vendor.findOne({ phone });
-        if (existingPhone) {
-            return res.status(400).json({ msg: "Vendor with this phone number already exists" });
-        }
+        if (existingPhone) return res.status(400).json({ msg: "Vendor with this phone number already exists" });
 
-        // Check if the Account Number already exists
         const existingAccount = await Vendor.findOne({ accountNumber });
-        if (existingAccount) {
-            return res.status(400).json({ msg: "Vendor with this Account Number/IBAN already exists" });
-        }
-
-        // Check password length
-        if (password.length < 8) {
-            return res.status(400).json({ msg: "Password must be at least 8 characters long" });
-        }
+        if (existingAccount) return res.status(400).json({ msg: "Vendor with this IBAN already exists" });
 
         // Hash the password
         const salt = await bcrypt.genSalt(10);
