@@ -24,6 +24,9 @@ vendorRouter.post("/api/vendor/signup", async (req, res) => {
         if (!ibanRegex.test(accountNumber)) {
             return res.status(400).json({ msg: "Invalid IBAN/Account Number format" });
         }
+        if (accountNumber.substring(4).split('').every(char => char === '0')) {
+            return res.status(400).json({ msg: "IBAN/Account Number cannot be all zeros" });
+        }
 
         // Check if the email already exists
         const existingEmail = await Vendor.findOne({ email: emailLower });
@@ -174,8 +177,30 @@ vendorRouter.post("/api/vendor/forgot-password", async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// Route to check if vendor detail exists (for real-time uniqueness validation)
+vendorRouter.get("/api/vendor/check-uniqueness", async (req, res) => {
+    try {
+        const { field, value } = req.query;
+        if (!field || !value) {
+            return res.status(400).json({ msg: "Field and value are required" });
+        }
 
+        let query = {};
+        if (field === 'email') {
+            query.email = value.toLowerCase();
+        } else if (field === 'phone') {
+            query.phone = value;
+        } else if (field === 'accountNumber') {
+            query.accountNumber = value;
+        } else {
+            return res.status(400).json({ msg: "Invalid field name" });
+        }
 
-
+        const exists = await Vendor.findOne(query);
+        res.json({ exists: !!exists });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 module.exports=vendorRouter;
