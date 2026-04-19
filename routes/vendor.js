@@ -28,16 +28,16 @@ vendorRouter.post("/api/vendor/signup", async (req, res) => {
             return res.status(400).json({ msg: "Invalid email format" });
         }
 
-        // 3. IBAN Validation (Format Only - 24 Chars, Prefix PK)
+        // 3. IBAN Validation (Strict Format - PKXX AAAA NNNN...)
         const normalizedIBAN = accountNumber.toUpperCase().replace(/\s/g, '');
-        if (!/^PK[0-9]{2}[A-Z]{4}[A-Z0-9]{16}$/.test(normalizedIBAN) || normalizedIBAN.length !== 24) {
-            return res.status(400).json({ msg: "Invalid Pakistan IBAN format (Must be 24 chars starting with PK)" });
+        const ibanRegex = /^PK[0-9]{2}[A-Z]{4}[0-9]{16}$/;
+        if (!ibanRegex.test(normalizedIBAN)) {
+            return res.status(400).json({ msg: "Invalid IBAN structure (Format: PKXX AAAA 0000 0000 0000 0000)" });
         }
-        if (normalizedIBAN.substring(2, 4) === '00') {
-            return res.status(400).json({ msg: "IBAN check digits cannot be 00" });
-        }
-        if (normalizedIBAN.substring(8).split('').every(char => char === '0')) {
-            return res.status(400).json({ msg: "IBAN account number part cannot be all zeros" });
+        
+        const numericPart = normalizedIBAN.substring(8);
+        if (numericPart.split('').every(char => char === '0')) {
+            return res.status(400).json({ msg: "IBAN numeric part cannot be all zeros" });
         }
 
         // 4. Password validation (Strength)
